@@ -1,10 +1,8 @@
 package com.namei.wms.server;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import com.namei.wms.client.NettyClientHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.util.CharsetUtil;
 
 /*
 说明
@@ -12,6 +10,8 @@ import io.netty.util.CharsetUtil;
 2. 这时我们自定义一个Handler , 才能称为一个handler
  */
 public class NettyServerHandler extends ChannelInboundHandlerAdapter {
+
+    NettyClientHandler clientHandler = new NettyClientHandler();
 
     //读取数据实际(这里我们可以读取客户端发送的消息)
     /*
@@ -27,9 +27,8 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
 
         //将 msg 转成一个 ByteBuf
         //ByteBuf 是 Netty 提供的，不是 NIO 的 ByteBuffer.
-        ByteBuf buf = (ByteBuf) msg;
-        System.err.println("接收到客户端发送任务:" + buf.toString(CharsetUtil.ISO_8859_1));
-
+        System.err.println("server reveived");
+        clientHandler.channelRead(ctx, msg);
     }
 
     //数据读取完毕
@@ -39,8 +38,10 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
         // writeAndFlush 是 write + flush
         // 将数据写入到缓存，并刷新
         // 一般讲，我们对这个发送的数据进行编码
-        ctx.writeAndFlush(Unpooled.copiedBuffer("STXWMS   @METRO @12@U@TS@00512@ @ @002@050@000000000000@1200@STABLE" +
-                "@0000@0000@09902@02501@1ETX", CharsetUtil.ISO_8859_1));
+//        ctx.writeAndFlush(Unpooled.copiedBuffer("STXWMS   @METRO @12@U@TS@00512@ @ @002@050@000000000000@1200@STABLE" +
+//                "@0000@0000@09902@02501@1ETX", CharsetUtil.ISO_8859_1));
+
+
     }
 
     //处理异常, 一般是需要关闭通道

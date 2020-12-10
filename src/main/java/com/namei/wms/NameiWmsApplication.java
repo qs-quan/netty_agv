@@ -31,7 +31,7 @@ public class NameiWmsApplication implements CommandLineRunner {
         /**
          * 使用异步注解方式启动netty服务端服务
          */
-        nettyServer.start(12345);
+        nettyServer.start(1001);
 
     }
 

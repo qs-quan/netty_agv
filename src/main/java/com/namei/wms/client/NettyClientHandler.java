@@ -1,5 +1,6 @@
 package com.namei.wms.client;
 
+import cn.hutool.core.date.DateUtil;
 import com.namei.wms.service.AgvListener;
 import com.namei.wms.service.AgvService;
 import io.netty.buffer.ByteBuf;
@@ -10,6 +11,7 @@ import io.netty.util.CharsetUtil;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,13 +32,27 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     public static final String TAST_TYPE_OUT = "OUT";  //出库
 
 
+    public static final String TEST_MESSAGE_ID = "17";          //消息id
+
+    public static final String TEST_JOD_ID = "00017";           //任务id
+
+    public static final String TEST_PICK_UP_POSITION = "00101";          //初始拣货位
+
+    public static final String TEST_PICK_UP_POSITION_UPDATE = "00101";   //更新拣货位
+
+
+    public static final String TEST_PICK_DOWN_POSITION = "31116";         //初始送货位
+
+    public static final String TEST_PICK_DOWN_POSITION_UPDATE = "31116";  //更新送货位
+
+
     //当通道就绪就会触发该方法
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
 //        String task = agvService.sendTask();
         String task = createTask();
         ctx.writeAndFlush(Unpooled.copiedBuffer(task, CharsetUtil.ISO_8859_1));
-        System.out.println("wms发送的任务执行===" + task);
+        System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") +  " wms -> metro  sendOrder===" + task);
 //        while (true) {
 //            // todo 随时发送任务
 //        }
@@ -53,12 +69,13 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     private String createTask() {
         StringBuffer task = new StringBuffer();
         // STXMETRO @WMS @20@U@TO@00512@NEW @MEDIUM@000@000@000000000000@1200@STABLE@0000@0000@09901@02501@1ETX
-        task.append(START).append("METRO ").append(SPLIT).append("WMS   ").append(SPLIT).append("20").append(SPLIT)
+        task.append(START).append("METRO ").append(SPLIT).append("WMS   ").append(SPLIT).append(TEST_MESSAGE_ID).append(SPLIT)
                 .append("U").append(SPLIT).append("TO").append(SPLIT)
-                .append("12345").append(SPLIT).append("NEW   ").append(SPLIT).append("MEDIUM").append(SPLIT)
+                .append(TEST_JOD_ID).append(SPLIT).append("NEW   ").append(SPLIT).append("MEDIUM").append(SPLIT)
                 .append("000").append(SPLIT).append("000").append(SPLIT).append("0000000000000000").append(SPLIT)
                 .append("1200").append(SPLIT).append("STABLE          ").append(SPLIT).append("0000").append(SPLIT)
-                .append("0000").append(SPLIT).append("09901").append(SPLIT).append("02501").append(SPLIT).append("1")
+                .append("0000").append(SPLIT).append(TEST_PICK_UP_POSITION).append(SPLIT)
+                .append(TEST_PICK_DOWN_POSITION).append(SPLIT).append("1")
                 .append(END);
         return task.toString();
     }
@@ -72,11 +89,12 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
         ByteBuf buf = (ByteBuf) msg;
         String message = buf.toString(CharsetUtil.ISO_8859_1);
         message = getIsoToUtf_8(message);
-        System.err.println("服务器回复的消息:::::" + getIsoToUtf_8(message));
+        System.err.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "  metro -> wms:::::" + getIsoToUtf_8(message));
         List<String> messList = splitMessage(message);
         // todo 报文去重，防止重复消费
         messList.forEach(item -> {
             if (item.startsWith(START) && item.endsWith(END)) {
+                System.err.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "metro -> wms::" + item);
                 String[] dataArr = item.split(SPLIT);
                 String receiver = dataArr[0].trim();
                 String ack = dataArr[3].trim();
@@ -93,7 +111,6 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
                 }
             }
         });
-
 
     }
 
@@ -116,6 +133,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
             }
             // MetRo 发送 AGV 状态 (AS)
             case "AS": {
+                ack(ctx,dataArr);
                 handleASMessage(dataArr);
                 break;
             }
@@ -130,7 +148,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     private void handleASMessage(String[] dataArr) {
         String avgId = dataArr[5].trim();
         String avgStatus = dataArr[6].trim().toUpperCase();
-        System.err.println("avgId" + ":" + avgStatus);
+        System.err.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "avgId:" + avgId + " status:" + avgStatus);
         switch (avgStatus) {
             //REMOVED被移除
             case "REMOVED": {
@@ -177,82 +195,96 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
     private void handleTSMessage(ChannelHandlerContext ctx, String[] dataArr) {
         String messageStatus = dataArr[9].trim();
-        String answerMode = dataArr[7].trim();
-        if (answerMode.equals("FULL")) {
-            ack(ctx, dataArr);
-        }
+//        String answerMode = dataArr[7].trim();
+//        if (answerMode.equals("FULL")) {
+//            ack(ctx, dataArr);
+//        }
         switch (messageStatus) {
             //30 = “Accepted”“已接受”
-            case "30": {
+            case "030": {
                 // todo 更新任务状态
+                System.err.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "更新任务状态");
                 break;
             }
             // 40 = “Allocated”“已分配”
-            case "40": {
+            case "040": {
+                System.err.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "已分配");
                 break;
             }
             // 50 = “Fetch-Entry”“进入取料点”
-            case "50": {
+            case "050": {
                 // todo 更新取货点  wms->metro
-                String binCode = "";
+                String binCode = TEST_PICK_UP_POSITION_UPDATE;
                 updateTask(dataArr, ctx, TAST_TYPE_OUT, binCode);
 //                                agvListener.onFetchEntry();
                 break;
             }
             // 60 = “Loaded”“已装载”
-            case "60": {
+            case "060": {
                 // todo 1:更新任务和 减库存  2:TO‐更新送货点 wms->metro
-                if (answerMode.equals("MEDIUM")) {
-                    ack(ctx, dataArr);
-                }
+//                if (answerMode.equals("MEDIUM")) {
+//                    ack(ctx, dataArr);
+//                }
+                ack(ctx, dataArr);
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "更新任务和 减库存  2:TO‐更新送货点 wms->metro");
                 break;
             }
             // 70 = “Delivery-Entry”“进入送料点”
-            case "70": {
+            case "070": {
                 // todo 更新送货位  wms->metro
-                String binCode = "";
+                String binCode = TEST_PICK_DOWN_POSITION_UPDATE;
                 updateTask(dataArr, ctx, TAST_TYPE_IN, binCode);
 //                                agvListener.onDeliveryEntry();
                 break;
             }
             // 80 = “Delivered”“已送达”
-            case "80": {
+            case "080": {
                 // todo 更新任务和 加库存
-                if (answerMode.equals("MEDIUM")) {
-                    ack(ctx, dataArr);
-                }
+//                if (answerMode.equals("MEDIUM")) {
+//                    ack(ctx, dataArr);
+//                }
+                ack(ctx, dataArr);
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "更新任务 和 加库存");
                 break;
             }
             // 90 = “NoLoadPickupPosition”“取料点无负载”
-            case "90": {
+            case "090": {
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "取料点无负载");
                 break;
             }
             // 91 = “DeliveryOccupied”“送料点被占”
-            case "91": {
+            case "091": {
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "送料点被占");
                 break;
             }
             // 92 = “AddressError”“地址错误”
-            case "92": {
+            case "092": {
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "地址错误");
                 break;
             }
             // 93 = “LowerUnitMissing”“低单元缺失”
-            case "93": {
+            case "093": {
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "低单元缺失");
                 break;
             }
             // 94 = “WrongUnitType”“错误的单元类型”
-            case "94": {
+            case "094": {
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "错误的单元类型");
                 break;
             }
             // 95 = “NoRead”“未读到”
-            case "95": {
+            case "095": {
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "未读到");
                 break;
             }
             // 96 = “AbNormalEnd”“异常停止”
-            case "96": {
+            case "096": {
+                System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "异常停止");
                 break;
             }
             // 100 = “Finished”“完成”
             case "100": {
+                System.err.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "完成!!!!!!!");
                 break;
             }
         }
@@ -271,6 +303,8 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
         String task = Arrays.asList(dataArr).stream().collect(Collectors.joining(SPLIT));
         ctx.writeAndFlush(Unpooled.copiedBuffer(task, CharsetUtil.ISO_8859_1));
+        System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "wms -> metro::: " +
+                "updateTask===type:" + type + "====message:" + task);
 
     }
 
@@ -285,7 +319,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
         dataArr[4] = "PR" + END;
         String answerMessage = Arrays.asList(dataArr).stream().collect(Collectors.joining(SPLIT));
         ctx.writeAndFlush(Unpooled.copiedBuffer(answerMessage, CharsetUtil.ISO_8859_1));
-        System.err.println("wms发送消息===" + answerMessage);
+        System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "wms -> metro:::" + answerMessage);
     }
 
 
@@ -295,12 +329,14 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
         dataArr[3] = "A";
         String answerMessage = Arrays.asList(dataArr).stream().collect(Collectors.joining(SPLIT));
         ctx.writeAndFlush(Unpooled.copiedBuffer(answerMessage, CharsetUtil.ISO_8859_1));
+        System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "wms -> metro::: ack===" + answerMessage);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         cause.printStackTrace();
         ctx.close();
+        System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "err:" + cause.getMessage());
     }
 
 
