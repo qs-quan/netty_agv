@@ -21,6 +21,10 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
     private AgvListener agvListener = new AgvListener();
 
+    public static final String METRO = "METRO ";
+
+    public static final String WMS = "WMS   ";
+
     public static final String SPLIT = "@";
 
     public static final String START = asciiToString("2");
@@ -52,7 +56,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 //        String task = agvService.sendTask();
         String task = createTask();
         ctx.writeAndFlush(Unpooled.copiedBuffer(task, CharsetUtil.ISO_8859_1));
-        System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") +  " wms -> metro  sendOrder===" + task);
+        System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + " wms -> metro  sendOrder===" + task);
 //        while (true) {
 //            // todo 随时发送任务
 //        }
@@ -69,7 +73,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     private String createTask() {
         StringBuffer task = new StringBuffer();
         // STXMETRO @WMS @20@U@TO@00512@NEW @MEDIUM@000@000@000000000000@1200@STABLE@0000@0000@09901@02501@1ETX
-        task.append(START).append("METRO ").append(SPLIT).append("WMS   ").append(SPLIT).append(TEST_MESSAGE_ID).append(SPLIT)
+        task.append(START).append(METRO).append(SPLIT).append(WMS).append(SPLIT).append(TEST_MESSAGE_ID).append(SPLIT)
                 .append("U").append(SPLIT).append("TO").append(SPLIT)
                 .append(TEST_JOD_ID).append(SPLIT).append("NEW   ").append(SPLIT).append("MEDIUM").append(SPLIT)
                 .append("000").append(SPLIT).append("000").append(SPLIT).append("0000000000000000").append(SPLIT)
@@ -133,7 +137,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
             }
             // MetRo 发送 AGV 状态 (AS)
             case "AS": {
-                ack(ctx,dataArr);
+                ack(ctx, dataArr);
                 handleASMessage(dataArr);
                 break;
             }
@@ -313,8 +317,8 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void handlePOMessage(String[] dataArr, ChannelHandlerContext ctx) {
-        dataArr[0] = START + "METRO ";
-        dataArr[1] = "WMS   ";
+        dataArr[0] = START + METRO;
+        dataArr[1] = WMS;
         dataArr[3] = "A";
         dataArr[4] = "PR" + END;
         String answerMessage = Arrays.asList(dataArr).stream().collect(Collectors.joining(SPLIT));
@@ -324,8 +328,8 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
 
     private void ack(ChannelHandlerContext ctx, String[] dataArr) {
-        dataArr[0] = START + "RETRO ";
-        dataArr[1] = "WMS   ";
+        dataArr[0] = START + METRO;
+        dataArr[1] = WMS;
         dataArr[3] = "A";
         String answerMessage = Arrays.asList(dataArr).stream().collect(Collectors.joining(SPLIT));
         ctx.writeAndFlush(Unpooled.copiedBuffer(answerMessage, CharsetUtil.ISO_8859_1));
