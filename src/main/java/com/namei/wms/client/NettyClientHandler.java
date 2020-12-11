@@ -36,9 +36,9 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     public static final String TAST_TYPE_OUT = "OUT";  //出库
 
 
-    public static final String TEST_MESSAGE_ID = "17";          //消息id
+    public static final String TEST_MESSAGE_ID = "35";          //消息id
 
-    public static final String TEST_JOD_ID = "00017";           //任务id
+    public static final String TEST_JOD_ID = "00035";           //任务id
 
     public static final String TEST_PICK_UP_POSITION = "00101";          //初始拣货位
 
@@ -218,8 +218,9 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
             // 50 = “Fetch-Entry”“进入取料点”
             case "050": {
                 // todo 更新取货点  wms->metro
+                ack(ctx,dataArr);
                 String binCode = TEST_PICK_UP_POSITION_UPDATE;
-                updateTask(dataArr, ctx, TAST_TYPE_OUT, binCode);
+                updateTask(ctx, TAST_TYPE_OUT, binCode);
 //                                agvListener.onFetchEntry();
                 break;
             }
@@ -230,14 +231,17 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 //                    ack(ctx, dataArr);
 //                }
                 ack(ctx, dataArr);
+                String binCode = TEST_PICK_UP_POSITION_UPDATE;
+                updateTask(ctx, TAST_TYPE_OUT, binCode);
                 System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "更新任务和 减库存  2:TO‐更新送货点 wms->metro");
                 break;
             }
             // 70 = “Delivery-Entry”“进入送料点”
             case "070": {
                 // todo 更新送货位  wms->metro
+                ack(ctx,dataArr);
                 String binCode = TEST_PICK_DOWN_POSITION_UPDATE;
-                updateTask(dataArr, ctx, TAST_TYPE_IN, binCode);
+                updateTask(ctx, TAST_TYPE_IN, binCode);
 //                                agvListener.onDeliveryEntry();
                 break;
             }
@@ -248,6 +252,8 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 //                    ack(ctx, dataArr);
 //                }
                 ack(ctx, dataArr);
+                String binCode = TEST_PICK_UP_POSITION_UPDATE;
+                updateTask(ctx, TAST_TYPE_OUT, binCode);
                 System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "更新任务 和 加库存");
                 break;
             }
@@ -295,18 +301,29 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     }
 
 
-    private void updateTask(String[] dataArr, ChannelHandlerContext ctx, String type, String binCode) {
+    private void updateTask(ChannelHandlerContext ctx, String type, String binCode) {
+//        dataArr[6] = "UPDATE";
         if (type.equals(TAST_TYPE_IN)) {
             // 更新送货位
-            dataArr[16] = binCode;
+//            dataArr[16] = binCode;
         }
         if (type.equals(TAST_TYPE_OUT)) {
             // 更新取货位
-            dataArr[15] = binCode;
+//            dataArr[15] = binCode;
         }
+        StringBuffer task = new StringBuffer();
+        // STXMETRO @WMS @20@U@TO@00512@NEW @MEDIUM@000@000@000000000000@1200@STABLE@0000@0000@09901@02501@1ETX
+        task.append(START).append(METRO).append(SPLIT).append(WMS).append(SPLIT).append(TEST_MESSAGE_ID).append(SPLIT)
+                .append("U").append(SPLIT).append("TO").append(SPLIT)
+                .append(TEST_JOD_ID).append(SPLIT).append("UPDATE").append(SPLIT).append("MEDIUM").append(SPLIT)
+                .append("000").append(SPLIT).append("000").append(SPLIT).append("0000000000000000").append(SPLIT)
+                .append("1200").append(SPLIT).append("STABLE          ").append(SPLIT).append("0000").append(SPLIT)
+                .append("0000").append(SPLIT).append(TEST_PICK_UP_POSITION).append(SPLIT)
+                .append(TEST_PICK_DOWN_POSITION).append(SPLIT).append("1")
+                .append(END);
 
-        String task = Arrays.asList(dataArr).stream().collect(Collectors.joining(SPLIT));
-        ctx.writeAndFlush(Unpooled.copiedBuffer(task, CharsetUtil.ISO_8859_1));
+//        String task = Arrays.asList(dataArr).stream().collect(Collectors.joining(SPLIT));
+        ctx.writeAndFlush(Unpooled.copiedBuffer(task.toString(), CharsetUtil.ISO_8859_1));
         System.out.println(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss") + "wms -> metro::: " +
                 "updateTask===type:" + type + "====message:" + task);
 
